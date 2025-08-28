@@ -3,31 +3,42 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-/// Implementation of the `stringify` macro, which takes an expression
-/// of any type and produces a tuple containing the value of that expression
-/// and the source code that produced the value. For example
-///
-///     #stringify(x + y)
-///
-///  will expand to
-///
-///     (x + y, "x + y")
-public struct StringifyMacro: ExpressionMacro {
+public struct KeyPathableMacro: MemberMacro {
     public static func expansion(
-        of node: some FreestandingMacroExpansionSyntax,
+        of node: AttributeSyntax,
+        providingMembersOf declaration: some DeclGroupSyntax,
         in context: some MacroExpansionContext
-    ) -> ExprSyntax {
-        guard let argument = node.arguments.first?.expression else {
-            fatalError("compiler bug: the macro does not have any arguments")
-        }
+    ) throws -> [DeclSyntax] {
 
-        return "(\(argument), \(literal: argument.description))"
+        let propertyNames: [String] = declaration.memberBlock.members.compactMap { member in
+            guard let varDecl = member.decl.as(VariableDeclSyntax.self),
+                  varDecl.bindings.first?.accessorBlock == nil,
+                  let name = varDecl.bindings.first?.pattern.description.trimmingCharacters(in: .whitespacesAndNewlines),
+                  varDecl.attributes.contains(where: { $0.description.contains("@KeyPath") })
+            else { return nil }
+            return name
+        }
+        
+        let staticMembers = propertyNames.map { name in
+            "    public static let \(name) = AttributeSource(key: \"\(name)\")"
+        }.joined(separator: "\n")
+        
+        let attributeSourceStruct: DeclSyntax = """
+        public struct AttributeSource: Codable, Hashable, Sendable {
+            public let key: String
+            private init(key: String) { self.key = key }
+        
+        \(raw: staticMembers)
+        }
+        """
+        
+        return [attributeSourceStruct]
     }
 }
 
 @main
 struct KeyPathablePlugin: CompilerPlugin {
     let providingMacros: [Macro.Type] = [
-        StringifyMacro.self,
+        KeyPathableMacro.self,
     ]
 }
