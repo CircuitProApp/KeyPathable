@@ -64,7 +64,7 @@ public struct KeyPathableMacro: MemberMacro {
         }.joined(separator: ",\n")
         
         let keyPathMap: DeclSyntax = """
-        private static let _keyPathLookup: [String: PartialKeyPath<\(rootTypeName)>] = [
+        internal static let _keyPathLookup: [String: PartialKeyPath<\(rootTypeName)>] = [
         \(raw: keyPathEntries)
         ]
         """
