@@ -7,5 +7,5 @@
 public macro KeyPath() = #externalMacro(module: "KeyPathableMacros", type: "KeyPathMarkerMacro")
 
 /// Generates the nested `AttributeSource` type.
-@attached(member, names: named(AttributeSource))
+@attached(member, names: named(AttributeSource), named(_keyPath))
 public macro KeyPathable() = #externalMacro(module: "KeyPathableMacros", type: "KeyPathableMacro")

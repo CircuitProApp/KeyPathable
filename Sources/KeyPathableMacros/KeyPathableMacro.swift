@@ -51,26 +51,25 @@ public struct KeyPathableMacro: MemberMacro {
         }
         """
 
-        // 2. Generate the private key path lookup dictionary (the new part).
         guard let rootTypeName = declaration.as(StructDeclSyntax.self)?.name ?? declaration.as(ClassDeclSyntax.self)?.name else {
-            // This could be an error diagnostic if the macro is applied to an unsupported type like an enum.
             return []
         }
         
-        let keyPathEntries = propertyNames.map { name in
-            // Create a dictionary entry mapping the string key to the compile-time KeyPath.
-            // Example: `"name": \ComponentDefinition.name`
-            "        \"\(name)\": \\\(rootTypeName).\(name)"
-        }.joined(separator: ",\n")
+        let switchCases = propertyNames.map { name in
+            // Create a case for each property
+            "        case \"\(name)\": return \\\(rootTypeName.trimmedDescription).\(name)"
+        }.joined(separator: "\n")
         
-        let keyPathMap: DeclSyntax = """
-        internal static let _keyPathLookup: [String: PartialKeyPath<\(rootTypeName)>] = [
-        \(raw: keyPathEntries)
-        ]
+        let keyPathFunction: DeclSyntax = """
+        internal static func _keyPath(for key: String) -> PartialKeyPath<\(raw: rootTypeName.trimmedDescription)>? {
+            switch key {
+        \(raw: switchCases)
+            default: return nil
+            }
+        }
         """
         
-        // 3. Return BOTH generated members.
-        return [attributeSourceStruct, keyPathMap]
+        return [attributeSourceStruct, keyPathFunction]
     }
 }
 
